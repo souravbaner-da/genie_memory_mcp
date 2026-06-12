@@ -1,0 +1,21 @@
+# Databricks App configuration for the Genie Code memory MCP server.
+#
+# Used when deploying WITHOUT the bundle (the bundle's inline config supersedes
+# this file). Attach the Lakebase Autoscaling project to the app as a `postgres`
+# resource in the UI — that auto-injects PGHOST/PGUSER/PGPORT/PGDATABASE/PGSSLMODE
+# and creates the app service principal's Postgres role. Only ENDPOINT_NAME and
+# the embedding config are set here.
+#
+# The app listens on $DATABRICKS_APP_PORT; the MCP endpoint is served at /mcp.
+command:
+  - python
+  - -m
+  - src.run
+
+env:
+  - name: ENDPOINT_NAME
+    value: "projects/genie-db/branches/production/endpoints/primary"
+  - name: EMBED_ENDPOINT
+    value: databricks-gte-large-en
+  - name: EMBED_DIM
+    value: "1024"

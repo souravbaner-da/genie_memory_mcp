@@ -1,0 +1,21 @@
+# Local dev: a Postgres with pgvector preinstalled, so you can exercise the
+# full hybrid-search path without Lakebase. Embeddings degrade to keyword-only
+# unless you also export Databricks credentials for the serving endpoint.
+#
+#   docker compose up -d
+#   export DATABASE_URL=postgresql://memory:memory@localhost:5432/memory
+#   python scripts/init_db.py
+#   python -m src.run        # serves MCP at http://localhost:8000/mcp
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: memory
+      POSTGRES_PASSWORD: memory
+      POSTGRES_DB: memory
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+volumes:
+  pgdata:

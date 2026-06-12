@@ -1,0 +1,102 @@
+# Databricks Asset Bundle for the Genie Code memory MCP server.
+#
+# ONE-COMMAND DEPLOY (fresh install via the `dev` target): the bundle CREATES the
+# Lakebase Autoscaling project (`postgres_projects`) and the app. The app self-creates
+# its schema on first boot (src/run.py -> memory.init_schema) into an app-owned schema,
+# so it owns its tables and NO manual GRANT is needed. db.py mints OAuth tokens per
+# connection.
+#
+#   databricks bundle validate -t dev -p <profile>
+#   databricks bundle deploy   -t dev -p <profile>          # creates project + app
+#   databricks bundle run genie_memory -t dev -p <profile>  # starts app; app self-inits schema
+#
+# (On a brand-new project the first deploy may need a re-run while the project's
+# `production` branch finishes provisioning.)
+#
+# Docs: https://docs.databricks.com/aws/en/dev-tools/databricks-apps/lakebase
+
+bundle:
+  name: genie-memory-mcp
+
+variables:
+  app_name:
+    # MUST start with "mcp-": Databricks only lists mcp-* apps in the Genie Code picker.
+    description: Databricks App name (must start with mcp-)
+    default: mcp-genie-memory
+  pg_project_id:
+    description: Lakebase Autoscaling project id (lowercase letters/digits/hyphens)
+    default: genie-memory
+  pg_schema:
+    # App-owned schema so the app self-creates tables on boot WITHOUT a GRANT (the
+    # public schema isn't writable by the app SP on PG15+). Use "public" only for
+    # deployments whose tables already live in public (with a GRANT to the app SP).
+    description: Postgres schema for the app's tables
+    default: genie
+  embed_endpoint:
+    description: Foundation Model embedding endpoint
+    default: databricks-gte-large-en
+  embed_dim:
+    description: Embedding dimension (must match the vector(N) columns in schema.sql)
+    default: "1024"
+
+targets:
+  # FRESH-INSTALL template — creates the Lakebase project + app. Set host + pg_project_id.
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://<your-workspace-host>
+    resources:
+      # Only fresh installs create the project; existing-project targets omit this
+      # so `deploy` never tries to re-create an existing project.
+      postgres_projects:
+        genie:
+          project_id: ${var.pg_project_id}
+          enable_pg_native_login: false
+
+  # Existing deployment — references the already-created `genie-memory` project (its
+  # tables live in `public` with a GRANT to the app SP). No postgres_projects here.
+  fevm:
+    mode: development
+    workspace:
+      host: https://fevm-internal-demo-sbanerjee.cloud.databricks.com
+    variables:
+      pg_project_id: genie-memory
+      pg_schema: public
+
+resources:
+  apps:
+    genie_memory:
+      name: ${var.app_name}
+      description: "Persistent memory MCP server for Genie Code (Lakebase + pgvector)"
+      source_code_path: .
+      config:
+        command:
+          - python
+          - -m
+          - src.run
+        env:
+          - name: ENDPOINT_NAME
+            value: projects/${var.pg_project_id}/branches/production/endpoints/primary
+          - name: EMBED_ENDPOINT
+            value: ${var.embed_endpoint}
+          - name: EMBED_DIM
+            value: ${var.embed_dim}
+          - name: PG_SCHEMA
+            value: ${var.pg_schema}
+          # Semantic relevance floor (min cosine similarity). 0 = off. gte-large-en
+          # scores ~0.30 for unrelated and ~0.6 for on-topic, so 0.5 filters off-topic.
+          - name: VECTOR_MIN_SCORE
+            value: "0.5"
+      resources:
+        - name: lakebase
+          description: "Lakebase Autoscaling project (injects PGHOST/PGUSER/PGPORT/PGDATABASE)"
+          postgres:
+            branch: projects/${var.pg_project_id}/branches/production
+            database: projects/${var.pg_project_id}/branches/production/databases/databricks-postgres
+            permission: CAN_CONNECT_AND_CREATE
+        - name: embeddings
+          description: "Embedding serving endpoint"
+          serving_endpoint:
+            name: ${var.embed_endpoint}
+            permission: CAN_QUERY
