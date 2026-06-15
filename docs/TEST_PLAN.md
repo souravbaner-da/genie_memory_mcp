@@ -12,6 +12,12 @@ the tool(s) that should fire, and what "correct" looks like.
 > **Keep real memory clean:** these use throwaway projects `qa-test` / `qa-test-2`. Purge
 > them when done (see [Cleanup](#cleanup)).
 
+> **Want a realistic example instead of `qa-test`?** See
+> [`FDE_WALKTHROUGH.md`](./FDE_WALKTHROUGH.md) — the same tools and behaviors driven through
+> a multi-day customer POC, where the payoff is a new session booting with full continuity.
+> This matrix stays deliberately minimal for systematic tool coverage; the walkthrough shows
+> the *why*.
+
 Tip: tools only fire in **Agent mode**. If Genie acknowledges without calling a tool,
 prompt explicitly: *"use the mcp-genie-memory tools to …"*.
 

@@ -216,3 +216,6 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+docs/FDE_WALKTHROUGH.md
+.DS_Store
+generated-slides/genie-code-memory.pptx
